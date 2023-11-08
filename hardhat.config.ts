@@ -10,13 +10,7 @@ import "@nomiclabs/hardhat-etherscan";
 require('dotenv').config();
 // dynamically changes endpoints for local tests
 const zkSyncTestnet =
-  process.env.NODE_ENV == "test"
-    ? {
-        url: "http://localhost:3050",
-        ethNetwork: "http://localhost:8545",
-        zksync: true,
-      }
-    : {
+      {
         url: "https://testnet.era.zksync.dev",
         ethNetwork: "goerli",
         zksync: true,
