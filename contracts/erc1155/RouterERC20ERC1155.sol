@@ -279,7 +279,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint amountOutMin,
         address to,
         uint deadline
-    ) external ensure(deadline) returns(uint)  {
+    ) external ensure(deadline) returns(uint) {
         (,, address _token) = getReservesERC20ERC1155(token, NFT, tokenId);
         (uint amount, uint feeSell) = getAmountSell(token, NFT, tokenId, amountNFT);
         require(amount >= amountOutMin, 'DeMaskRouter: INSUFFICIENT_OUTPUT_AMOUNT');

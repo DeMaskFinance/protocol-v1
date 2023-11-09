@@ -193,12 +193,14 @@ contract LaunchPad is ERC1155Holder {
     }
 
     function claimDml() external onlyCreator() verifyTimeClaimDml(){
+        require(dml != address(0), "LAUNCHPAD: DML_WRONG");
         uint256 balance = IERC7254(dml).balanceOf(address(this));
         TransferHelper.safeTransfer(dml, msg.sender, balance);
         emit ClaimDml(dml, msg.sender, balance, block.timestamp);
     }
 
     function claimReward() public onlyCreator(){
+        require(dml != address(0), "LAUNCHPAD: DML_WRONG");
         address[] memory tokenReward = IERC7254(dml).tokenReward();
         IERC7254(dml).getReward(tokenReward, msg.sender);
         emit ClaimReward(dml, tokenReward, msg.sender, block.timestamp);
@@ -211,7 +213,12 @@ contract LaunchPad is ERC1155Holder {
         uint amount = totalSoldout * LaunchPadInfo.price * (Denominator - LaunchPadInfo.percentLock) / Denominator;
         uint amountWithdraw = getBalance(amount);
         isWithdrawn = true;
-        TransferHelper.safeTransfer(LaunchPadInfo.tokenPayment, LaunchPadInfo.creator, amountWithdraw);
+        if(LaunchPadInfo.tokenPayment == WETH){
+            IWETH(WETH).withdraw(amountWithdraw);
+            TransferHelper.safeTransferETH(LaunchPadInfo.creator, amountWithdraw);
+        }else{
+            TransferHelper.safeTransfer(LaunchPadInfo.tokenPayment, LaunchPadInfo.creator, amountWithdraw);
+        }
         emit Withdraw(LaunchPadInfo.creator, amountWithdraw, block.timestamp);
     }
 
