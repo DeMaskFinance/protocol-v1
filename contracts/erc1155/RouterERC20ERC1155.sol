@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interface/IDMLTokenERC20ERC1155.sol";
 import "../interface/IFactoryERC20ERC1155.sol";
 import "../interface/IWETH.sol";
-import "../interface/ICreator.sol";
 import "../interface/IFeeManager.sol";
 import "../library/SafeMath.sol";
 import "../library/TransferHelper.sol";
@@ -18,33 +17,19 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
     IFactoryERC20ERC1155 public factoryERC20ERC1155;
     IFeeManager public feeManager; 
 
-    mapping(address => bool) public isCreator;
-
     modifier ensure(uint deadline) {
         require(deadline >= block.timestamp, 'DeMaskRouter: EXPIRED');
         _;
     }
 
-    modifier onlyLaunchPad(address creator){
-        require(isCreator[creator], "DeMaskRouter: CREATOR_WRONG");
-        require(ICreator(creator).existLaunchPad(msg.sender), "DeMaskRouter: Not LaunchPad");
-        _;
-    }
-
-    constructor(address _feeManager, address _factoryERC20ERC1155, address _WETH, address _creator){
+    constructor(address _feeManager, address _factoryERC20ERC1155, address _WETH){
         factoryERC20ERC1155 = IFactoryERC20ERC1155(_factoryERC20ERC1155);
         feeManager = IFeeManager(_feeManager);
         WETH = _WETH;
-        isCreator[_creator] = true;
     }
 
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
-    }
-
-    function updateLaunchPad(address _creator, bool status) external onlyOwner(){
-        require(_creator != address(0), "CREATOR_WRONG");
-        isCreator[_creator] = status;
     }
 
     event MakeTransaction( 
@@ -71,37 +56,6 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint reserveNFT,
         uint blockTime
     );
-
-    function launchpadAddLiquidity(
-        address token, 
-        address NFT,
-        uint256 tokenId,
-        uint amountTokenDesired,
-        uint amountNFTDesired,
-        uint amountTokenMin,
-        address to, 
-        uint deadline
-    ) external ensure(deadline) onlyLaunchPad(NFT) returns(address){
-        (uint amountToken, uint amountNFT) = _addERC20ERC1155(token, NFT, tokenId, amountTokenDesired, amountNFTDesired, amountTokenMin);
-        address _token = factoryERC20ERC1155.getDmlToken(token, NFT, tokenId);
-        TransferHelper.safeTransfer(token, _token, amountToken);
-        TransferHelper.safeTransferFromERC1155(NFT, address(this), _token, tokenId, amountNFT, bytes(''));
-        uint liquidity = IDMLTokenERC20ERC1155(_token).mint(to);
-        (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
-        emit MakeLiquidity(
-            'Add',
-            to,
-            msg.sender,
-            _token,
-            amountToken,
-            amountNFT,
-            liquidity,
-            _reserveToken,
-            _reserveNFT,
-            block.timestamp
-        );
-        return _token;
-    }
     
     function addERC20ERC1155(
         address token, 

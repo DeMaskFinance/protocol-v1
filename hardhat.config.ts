@@ -34,6 +34,12 @@ const config: HardhatUserConfig = {
       url: "https://polygon-mumbai-bor.publicnode.com",
       accounts: [process.env.WALLET_PRIVATE_KEY]
     },
+
+    goerli: {
+      url: "https://rpc.ankr.com/eth_goerli",
+      accounts: [process.env.WALLET_PRIVATE_KEY]
+    },
+
   },
   solidity: {
     version: "0.8.17",
@@ -46,7 +52,7 @@ const config: HardhatUserConfig = {
     }
   },
   etherscan : {
-    apiKey: process.env.API_KEY_MATIC
+    apiKey: process.env.API_KEY
   }
 };
 
