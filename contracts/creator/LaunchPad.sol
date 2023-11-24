@@ -69,18 +69,18 @@ contract LaunchPad is ERC1155Holder {
 
     modifier verifyTransactionAmount(uint _amount){
         require( (totalSoldout + _amount) * price <= hardcap, "LAUNCHPAD: AMOUNT_WRONG");
-        require(balanceOf[msg.sender] + _amount <= purchaseLimit);
+        require(balanceOf[msg.sender] + _amount <= purchaseLimit, "LAUNCHPAD: PURCHASE_LIMIT_WRONG");
         if( (totalSoldout + _amount) * price >= softcap) softcapmet = true;
         _;
     }
 
     modifier verifyTimeClaimForUser(){
-        require(block.timestamp > endTime, "LAUNCHPAD: WAITING_END");
+        require(block.timestamp > endTime, "LAUNCHPAD: WAITING_FOR_LAUNCHPAD_TO_BE_END");
         _;
     }
 
     modifier verifyTimeBuyForUser(){
-        require(block.timestamp > startTime && block.timestamp <= endTime, "LAUNCHPAD: WAITING_OPEN");
+        require(block.timestamp > startTime && block.timestamp <= endTime, "LAUNCHPAD: WAITING_FOR_LAUNCHPAD_TO_BE_OPENED");
         _;
     }
 
@@ -127,18 +127,18 @@ contract LaunchPad is ERC1155Holder {
         emit Released(msg.sender, amount, block.timestamp);
     }
 
-    function withdraw() external onlyCreator(){
+    function withdraw(address receiver) external onlyCreator(){
         require(block.timestamp >= endTime, "LAUNCHPAD: ENDTIME_WRONG");
         require(softcapmet, "LAUNCHPAD: SOFTCAP_WRONG");
         require(!isWithdrawn, "LAUNCHPAD: WITHDRAW_WRONG");
         uint amount = getBalance();
         isWithdrawn = true;
         if(tokenPayment == WETH){
-            TransferHelper.safeTransferETH(msg.sender, amount);
+            TransferHelper.safeTransferETH(receiver, amount);
         }else{
-            TransferHelper.safeTransfer(tokenPayment, msg.sender, amount);
+            TransferHelper.safeTransfer(tokenPayment, receiver, amount);
         }
-        emit Withdraw(msg.sender, amount, block.timestamp);
+        emit Withdraw(receiver, amount, block.timestamp);
     }
 
     function startVesting() public view returns(uint256){
