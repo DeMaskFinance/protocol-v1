@@ -108,7 +108,7 @@ contract LaunchPad is ERC1155Holder {
 
     function leave(uint amount) external {
         require(!softcapmet, "LAUNCHPAD: SOFTCAP_WRONG");
-        require(balanceOf[msg.sender] >= amount, "LAUNCHPAD: BALANCEOF_WRONG");
+        require(balanceOf[msg.sender] >= amount && amount > 0, "LAUNCHPAD: BALANCEOF_WRONG");
         balanceOf[msg.sender] -= amount;
         totalSoldout -= amount;
         if(tokenPayment == WETH){
@@ -119,9 +119,10 @@ contract LaunchPad is ERC1155Holder {
         emit Leave(msg.sender, amount, totalSoldout, block.timestamp);
     }
 
-     function release() external verifyTimeClaimForUser(){
+    function release() external verifyTimeClaimForUser(){
         require(softcapmet, "LAUNCHPAD: SOFTCAP_WRONG");
         uint256 amount = releasable(msg.sender);
+        require(amount > 0, "LAUNCHPAD: AMOUNT_WRONG");
         tokenReleased[msg.sender] += amount;
         TransferHelper.safeTransferFromERC1155(NFT, address(this), msg.sender, tokenId, amount, bytes(''));
         emit Released(msg.sender, amount, block.timestamp);

@@ -27,8 +27,9 @@
       "royalty": "yarn hardhat deploy-zksync --script deploy-royaltyEngine.ts",
       "tokenlist": "yarn hardhat deploy-zksync --script deploy-tokenlist.ts",
       "feemanager": "yarn hardhat deploy-zksync --script deploy-feemanager.ts",
+      "mint": "yarn hardhat deploy-zksync --script deploy-mint.ts",
+      "launchpad": "yarn hardhat deploy-zksync --script deploy-launchpad.ts",
       "factory": "yarn hardhat deploy-zksync --script deploy-factory.ts",
-      "creator": "yarn hardhat deploy-zksync --script deploy-creator.ts",
       "router": "yarn hardhat deploy-zksync --script deploy-router.ts"
     },
     "dependencies": {
