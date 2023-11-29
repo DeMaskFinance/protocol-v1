@@ -40,6 +40,11 @@ const config: HardhatUserConfig = {
       accounts: [process.env.WALLET_PRIVATE_KEY]
     },
 
+    matic: {
+      url: "https://rpc.ankr.com/polygon",
+      accounts: [process.env.WALLET_PRIVATE_KEY]
+    },
+
   },
   solidity: {
     version: "0.8.17",
