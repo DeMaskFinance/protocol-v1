@@ -213,13 +213,13 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         require(amount <= amountInMax, 'DeMaskRouter: EXCESSIVE_INPUT_AMOUNT');
         if(token == WETH){
             require(amountInMax == msg.value, "ROUTER: MSG_VALUE_WRONG");
-            IWETH(WETH).deposit{value: amount.sub(feeBuy) }();
+            IWETH(WETH).deposit{value: amount.sub(feeBuy)}();
             TransferHelper.safeTransfer(WETH, _token, amount.sub(feeBuy));
             if (msg.value > amount) TransferHelper.safeTransferETH(msg.sender, msg.value.sub(amount));
         }else {
             TransferHelper.safeTransferFrom(token, msg.sender, _token, amount.sub(feeBuy));
         }
-        _feeDistribution(token, NFT, tokenId, amount.sub(feeBuy));
+        _feeDistribution(token, NFT, tokenId, amount.sub(feeBuy), _token);
         _swapAndUpdateReward(token, 0, tokenId, to, msg.sender, amount.sub(feeBuy) , _token);
         (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC721(token, NFT);
         emit MakeTransaction(
@@ -275,7 +275,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
             IWETH(WETH).deposit{value: feeBuy }();
             if (msg.value > feeBuy) TransferHelper.safeTransferETH(msg.sender, msg.value.sub(feeBuy));
         }
-        _feeDistribution(token, NFT, tokenIdTo, amount.sub(feeBuy));
+        _feeDistribution(token, NFT, tokenIdTo, amount.sub(feeBuy), _token);
         address[] memory tokenReward = new address[](1);
         uint256[] memory amountReward = new uint256[](1);
         tokenReward[0] = token;
@@ -295,12 +295,12 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         IDMLTokenERC20ERC721(_token).updateReward(tokenReward, amountReward);
     }
 
-    function _feeDistribution(address token, address NFT, uint256[] memory tokenId, uint amount) internal {    
+    function _feeDistribution(address token, address NFT, uint256[] memory tokenId, uint amount, address dml) internal {    
         address[] memory feeAddress =  new address[](3);
         uint[] memory feeAmount = new uint[](3);
         (feeAddress[0], feeAmount[0]) = feeManager.getDetailsProtocol(amount);
         (feeAddress[1], feeAmount[1]) = feeManager.getDetailsReferral(msg.sender, amount);
-        (feeAddress[2], feeAmount[2]) = feeManager.getDetailsLiquidity(address(this), amount);
+        (feeAddress[2], feeAmount[2]) = feeManager.getDetailsLiquidity(dml, amount);
         (token == WETH) ? TransferHelper.safeBatchTransferETH(feeAddress, feeAmount) :  TransferHelper.safeBatchTransferFrom(token, msg.sender, feeAddress, feeAmount);
         for(uint256 i = 0; i < tokenId.length; i++){
             (address[] memory recipients, uint256[] memory amounts) = feeManager.getDetailsRoyalty(NFT, tokenId[i], amount / tokenId.length);

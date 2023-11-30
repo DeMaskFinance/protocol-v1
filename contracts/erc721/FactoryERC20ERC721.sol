@@ -104,7 +104,7 @@ contract DMLTokenERC20ERC721 is ERC7254, ERC721Holder, ReentrancyGuard {
 
     function getReserves() public view returns (uint256 _reserveToken, uint256 _reserveNFT){
         _reserveToken = reserveToken;
-        _reserveNFT = _reserveNFT;
+        _reserveNFT = reserveNFT;
     }
     
     function getPool() public view returns (address){
