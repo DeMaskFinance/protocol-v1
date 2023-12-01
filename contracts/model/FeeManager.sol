@@ -164,6 +164,5 @@ contract FeeManager is Ownable {
         }
         return (feeAddress, feeAmount);
     }
-
 }
 
