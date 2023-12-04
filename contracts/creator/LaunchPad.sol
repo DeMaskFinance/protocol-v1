@@ -106,7 +106,7 @@ contract LaunchPad is ERC1155Holder {
         emit Buy(msg.sender, _amount, totalSoldout, block.timestamp);
     }
 
-    function leave(uint amount) external {
+    function leave(uint amount) external verifyTimeClaimForUser() {
         require(!softcapmet, "LAUNCHPAD: SOFTCAP_WRONG");
         require(balanceOf[msg.sender] >= amount && amount > 0, "LAUNCHPAD: BALANCEOF_WRONG");
         balanceOf[msg.sender] -= amount;
