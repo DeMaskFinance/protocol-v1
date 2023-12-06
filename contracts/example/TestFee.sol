@@ -16,7 +16,7 @@ contract TestFee {
         TransferHelper.safeTransferFrom(token, msg.sender, receiver, amount);
         address[] memory feeAddress =  new address[](4);
         uint[] memory feeAmount = new uint[](4);
-        (feeAddress, feeAmount) = feemanager.getFee(amount, dml, nft, id, msg.sender);
+        (feeAddress, feeAmount) = feemanager.getFee(amount, dml, msg.sender);
         TransferHelper.safeBatchTransferFrom(token, msg.sender, feeAddress, feeAmount);
     }
 
@@ -24,7 +24,7 @@ contract TestFee {
         TransferHelper.safeTransferFrom(token, msg.sender, receiver, amount);
         address[] memory feeAddress =  new address[](4);
         uint[] memory feeAmount = new uint[](4);
-        (feeAddress, feeAmount) = feemanager.getFee(amount, dml, nft, id, msg.sender);
+        (feeAddress, feeAmount) = feemanager.getFee(amount, dml, msg.sender);
     }
     
     function feem(uint amount) public view returns(uint[] memory, uint[] memory){

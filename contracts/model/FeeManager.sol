@@ -44,6 +44,11 @@ contract FeeManager is Ownable {
         uint blockTime
     );
 
+    event UpdateReferralContract(
+        address referral,
+        uint blockTime
+    );
+
     function updateProtocolReceiver(address _protocolReceiver) external onlyOwner(){
         require(_protocolReceiver != address(0), "FEEMANAGER: PROTOCOL_RECEIVER_WRONG");
         protocolReceiver = _protocolReceiver;
@@ -54,6 +59,12 @@ contract FeeManager is Ownable {
         require(_royaltyEngine != address(0), "FEEMANAGER: ROYALTY_ENGINE_WRONG");
         royaltyEngine = _royaltyEngine;
         emit UpdateRoyaltyEngine(_royaltyEngine, block.timestamp);
+    }
+
+    function updateReferralContract(address _referral) external onlyOwner() {
+        require(_referral != address(0),"FEEMANAGER: REFERRAL_CONTRACT_WRONG");
+        referralContract = _referral;
+        emit UpdateReferralContract(_referral, block.timestamp);
     }
 
     function updateFee(
@@ -132,36 +143,20 @@ contract FeeManager is Ownable {
         (recipients, amounts) = IRoyaltyEngineV1(royaltyEngine).getRoyaltyView(tokenAddress, tokenId, value);
     }
 
-    function getTotalFee(uint amount, address tokenAddress, uint256 tokenId) external view returns(uint){
-        uint fee = getFeeProtocol(amount) + getFeeReferral(amount) + getFeeLiquidity(amount) + getFeeRoyalty(tokenAddress, tokenId, amount);
+    function getTotalFee(uint amount) external view returns(uint){
+        uint fee = getFeeProtocol(amount) + getFeeReferral(amount) + getFeeLiquidity(amount);
         return fee;
     }
 
-    function getTotalFeeMultiTokenId(uint amount, address tokenAddress, uint256[] memory tokenId) external view returns(uint){
-        uint feeRoyalty; 
-        for(uint i = 0; i < tokenId.length; i++){
-            feeRoyalty += getFeeRoyalty(tokenAddress, tokenId[i], amount / tokenId.length);
-        }
-        uint fee = getFeeProtocol(amount) + getFeeReferral(amount) + getFeeLiquidity(amount) + feeRoyalty;
-        return fee;
-    }
-
-    function getFee(uint amount, address dml, address tokenAddress, uint256 tokenId, address user) external view returns(address[] memory, uint256[] memory){
-        (address payable[] memory recipients, uint256[] memory amounts) = IRoyaltyEngineV1(royaltyEngine).getRoyaltyView(tokenAddress, tokenId, amount);
-        address[] memory feeAddress = new address[](3 + recipients.length);
-        uint256[] memory feeAmount = new uint256[](3 + amounts.length);
+    function getFee(uint amount, address dml, address user) external view returns(address[] memory, uint256[] memory){
+        address[] memory feeAddress = new address[](3);
+        uint256[] memory feeAmount = new uint256[](3);
         feeAddress[0] = protocolReceiver;
         feeAddress[1] = IReferral(referralContract).getReceiver(user);
         feeAddress[2] = IDMLToken(dml).getPool();
         feeAmount[0] = getFeeProtocol(amount);
         feeAmount[1] = getFeeReferral(amount);
         feeAmount[2] = getFeeLiquidity(amount);
-        for(uint256 i = 0; i < recipients.length; i++){
-            if(amounts[i] > 0 && recipients[i] != address(0)){
-                feeAddress[3 + i] = recipients[i];
-                feeAmount[3 + i] = amounts[i];
-            }
-        }
         return (feeAddress, feeAmount);
     }
 }

@@ -23,6 +23,7 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     uint256 public reserveNFT;
     uint256 public tokenId;
     uint public kLast;
+    uint public Denominator = 1000000;
     Pool private pool;
     IFeeManager public feeManager;
     address public WETH;
@@ -182,7 +183,7 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
         {
             require(to != token && to != NFT, 'DEMASK: INVALID_TO');
             if (amountTokenOut > 0) {
-                uint _fee = feeManager.getTotalFee(amountTokenOut, NFT, tokenId);
+                uint _fee = feeManager.getTotalFee(amountTokenOut);
                 if(token == WETH) IWETH(WETH).withdraw(amountTokenOut);
                 (token == WETH) ? TransferHelper.safeTransferETH(to, amountTokenOut.sub(_fee)) : TransferHelper.safeTransfer(token, to, amountTokenOut.sub(_fee));
                 _distribution(from, amountTokenOut);
@@ -205,7 +206,7 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     }
 
     function _distribution(address from, uint amount) internal {
-        (address[] memory feeAddress, uint[] memory feeAmount) = feeManager.getFee(amount, address(this), NFT, tokenId, from);
+        (address[] memory feeAddress, uint[] memory feeAmount) = feeManager.getFee(amount, address(this), from);
         (token == WETH) ? TransferHelper.safeBatchTransferETH(feeAddress, feeAmount) :  TransferHelper.safeBatchTransfer(token, feeAddress, feeAmount);
     }
 

@@ -16,6 +16,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
     address public WETH;
     IFactoryERC20ERC1155 public factoryERC20ERC1155;
     IFeeManager public feeManager; 
+    uint public Denominator = 1000000;
 
     modifier ensure(uint deadline) {
         require(deadline >= block.timestamp, 'DeMaskRouter: EXPIRED');
@@ -167,7 +168,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint numerator = _reserveToken.mul(amountNFT).mul(10000);
         uint denominator = _reserveNFT.sub(amountNFT).mul(9975);
         uint amountIn = (numerator / denominator).add(1);
-        feeBuy = feeManager.getTotalFee(amountIn, NFT, tokenId);
+        feeBuy = feeManager.getTotalFee(amountIn);
         amountAFee = amountIn.add(feeBuy);
     }
 
@@ -184,7 +185,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint numerator = amountInWithFee.mul(_reserveToken);
         uint denominator = _reserveNFT.mul(10000).add(amountInWithFee);
         uint amountOut = numerator / denominator;
-        feeSell = feeManager.getTotalFee(amountOut, NFT, tokenId);
+        feeSell = feeManager.getTotalFee(amountOut);
         amountAFee = amountOut.sub(feeSell);
     }
 
@@ -194,6 +195,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint256 tokenId,
         uint amountNFT,
         uint amountInMax,
+        uint royaltyFee,
         address to,
         uint deadline
     ) external payable ensure(deadline) returns(uint) {
@@ -208,7 +210,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         }else{
             TransferHelper.safeTransferFrom(token, msg.sender, _token, amount.sub(feeBuy));
         }
-        _feeDistribution(_token, token, amount.sub(feeBuy), NFT, tokenId);
+        _feeDistribution(_token, token, amount.sub(feeBuy));
         _swapAndUpdateReward(token, 0, amountNFT, to, msg.sender, amount.sub(feeBuy), _token);
         (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         emit MakeTransaction(
@@ -231,6 +233,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint256 tokenId,
         uint amountNFT,
         uint amountOutMin,
+        uint royaltyFee,
         address to,
         uint deadline
     ) external ensure(deadline) returns(uint) {
@@ -263,8 +266,8 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         IDMLTokenERC20ERC1155(_token).updateReward(tokenReward, amountReward);
     }
 
-    function _feeDistribution(address _token, address token, uint amount, address NFT, uint tokenId) internal {
-        (address[] memory feeAddress, uint256[] memory feeAmount) = feeManager.getFee(amount, _token, NFT, tokenId, msg.sender);
+    function _feeDistribution(address _token, address token, uint amount) internal {
+        (address[] memory feeAddress, uint256[] memory feeAmount) = feeManager.getFee(amount, _token, msg.sender);
         (token == WETH) ? TransferHelper.safeBatchTransferETH(feeAddress, feeAmount) :  TransferHelper.safeBatchTransferFrom(token, msg.sender, feeAddress, feeAmount);
     }
 }

@@ -24,7 +24,8 @@ contract DMLTokenERC20ERC721 is ERC7254, ERC721Holder, ReentrancyGuard {
     uint public kLast;
     Pool private pool;
     IFeeManager public feeManager;
-
+    uint public Denominator = 1000000;
+    
     constructor(
         address _router,
         address _token,
@@ -179,10 +180,10 @@ contract DMLTokenERC20ERC721 is ERC7254, ERC721Holder, ReentrancyGuard {
         {
             require(to != token && to != NFT, 'DEMASK: INVALID_TO');
             if (amountTokenOut > 0) {
-                uint _fee = feeManager.getTotalFeeMultiTokenId(amountTokenOut, NFT, tokenId);
+                uint _fee = feeManager.getTotalFee(amountTokenOut);
                 if(token == WETH) IWETH(WETH).withdraw(amountTokenOut);
                 (token == WETH) ? TransferHelper.safeTransferETH(to, amountTokenOut.sub(_fee)) : TransferHelper.safeTransfer(token, to, amountTokenOut.sub(_fee));
-                _distribution(from, amountTokenOut, tokenId);
+                _distribution(from, amountTokenOut);
             }
             if(tokenId.length > 0) TransferHelper.safeTransferFromERC721(NFT, address(this), to, tokenId, tokenId.length);
             balanceToken = getBalanceToken();
@@ -201,17 +202,9 @@ contract DMLTokenERC20ERC721 is ERC7254, ERC721Holder, ReentrancyGuard {
         emit Swap(msg.sender, amounttokenIn, amountnftIn, amountTokenOut, tokenId.length, to);
     }
     
-    function _distribution(address from, uint amount, uint256[] memory tokenId) internal {
-        address[] memory feeAddress =  new address[](3);
-        uint[] memory feeAmount = new uint[](3);
-        (feeAddress[0], feeAmount[0]) = feeManager.getDetailsProtocol(amount);
-        (feeAddress[1], feeAmount[1]) = feeManager.getDetailsReferral(from, amount);
-        (feeAddress[2], feeAmount[2]) = feeManager.getDetailsLiquidity(address(this), amount);
+    function _distribution(address from, uint amount) internal {
+        (address[] memory feeAddress, uint[] memory feeAmount) = feeManager.getFee(amount, address(this), from);
         (token == WETH) ? TransferHelper.safeBatchTransferETH(feeAddress, feeAmount) :  TransferHelper.safeBatchTransfer(token, feeAddress, feeAmount);
-        for(uint256 i = 0; i < tokenId.length; i++){
-            (address[] memory recipients, uint256[] memory amounts) = feeManager.getDetailsRoyalty(NFT, tokenId[i], amount / tokenId.length);
-            (token == WETH) ? TransferHelper.safeBatchTransferETH(recipients, amounts) :  TransferHelper.safeBatchTransfer(token, recipients, amounts);
-        }
     }
 
     function _update(uint balanceToken, uint balanceNFT) private {

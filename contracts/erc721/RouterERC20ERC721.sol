@@ -17,6 +17,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
     uint256[] ARRAY_NULL;
     IFactoryERC20ERC721 public factoryERC20ERC721;
     IFeeManager public feeManager; 
+    uint public Denominator = 1000000;
 
     constructor(address _feeManager, address _factoryERC20ERC721, address _WETH){
         factoryERC20ERC721 = IFactoryERC20ERC721(_factoryERC20ERC721);
@@ -179,7 +180,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         uint numerator = _reserveToken.mul(amountNFT).mul(10000);
         uint denominator = _reserveNFT.sub(amountNFT).mul(9975);
         uint amountIn = (numerator / denominator).add(1);
-        feeBuy = feeManager.getTotalFeeMultiTokenId(amountIn, NFT, tokenId);
+        feeBuy = feeManager.getTotalFee(amountIn);
         amountAFee = amountIn.add(feeBuy);
     }
 
@@ -196,7 +197,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         uint numerator = amountInWithFee.mul(_reservetoken);
         uint denominator = _reserveNFT.mul(10000).add(amountInWithFee);
         uint amountOut = numerator / denominator;
-        feeSell = feeManager.getTotalFeeMultiTokenId(amountOut, NFT, tokenId);
+        feeSell = feeManager.getTotalFee(amountOut);
         amountAFee = amountOut.sub(feeSell);
     }
 
@@ -219,7 +220,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         }else {
             TransferHelper.safeTransferFrom(token, msg.sender, _token, amount.sub(feeBuy));
         }
-        _feeDistribution(token, NFT, tokenId, amount.sub(feeBuy), _token);
+        _feeDistribution(_token, token, amount.sub(feeBuy));
         _swapAndUpdateReward(token, 0, tokenId, to, msg.sender, amount.sub(feeBuy) , _token);
         (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC721(token, NFT);
         emit MakeTransaction(
@@ -275,7 +276,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
             IWETH(WETH).deposit{value: feeBuy }();
             if (msg.value > feeBuy) TransferHelper.safeTransferETH(msg.sender, msg.value.sub(feeBuy));
         }
-        _feeDistribution(token, NFT, tokenIdTo, amount.sub(feeBuy), _token);
+        _feeDistribution(_token, token, amount.sub(feeBuy));
         address[] memory tokenReward = new address[](1);
         uint256[] memory amountReward = new uint256[](1);
         tokenReward[0] = token;
@@ -295,16 +296,8 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         IDMLTokenERC20ERC721(_token).updateReward(tokenReward, amountReward);
     }
 
-    function _feeDistribution(address token, address NFT, uint256[] memory tokenId, uint amount, address dml) internal {    
-        address[] memory feeAddress =  new address[](3);
-        uint[] memory feeAmount = new uint[](3);
-        (feeAddress[0], feeAmount[0]) = feeManager.getDetailsProtocol(amount);
-        (feeAddress[1], feeAmount[1]) = feeManager.getDetailsReferral(msg.sender, amount);
-        (feeAddress[2], feeAmount[2]) = feeManager.getDetailsLiquidity(dml, amount);
+    function _feeDistribution(address _token, address token, uint amount) internal {
+        (address[] memory feeAddress, uint256[] memory feeAmount) = feeManager.getFee(amount, _token, msg.sender);
         (token == WETH) ? TransferHelper.safeBatchTransferETH(feeAddress, feeAmount) :  TransferHelper.safeBatchTransferFrom(token, msg.sender, feeAddress, feeAmount);
-        for(uint256 i = 0; i < tokenId.length; i++){
-            (address[] memory recipients, uint256[] memory amounts) = feeManager.getDetailsRoyalty(NFT, tokenId[i], amount / tokenId.length);
-            (token == WETH) ? TransferHelper.safeBatchTransferETH(recipients, amounts) :  TransferHelper.safeBatchTransferFrom(token, msg.sender, recipients, amounts);
-        }
     }
 }

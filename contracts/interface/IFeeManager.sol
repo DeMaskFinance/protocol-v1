@@ -13,7 +13,6 @@ interface IFeeManager {
     function getDetailsReferral(address user, uint256 amount) external view returns(address receiver, uint256 value);
     function getDetailsLiquidity(address dml, uint256 amount) external view returns(address receiver, uint256 value);
     function getDetailsRoyalty(address tokenAddress, uint256 tokenId, uint256 value) external view returns(address[] memory recipients, uint256[] memory amounts);
-    function getTotalFee(uint amount, address tokenAddress, uint256 tokenId) external view returns(uint);
-    function getTotalFeeMultiTokenId(uint amount, address tokenAddress, uint256[] memory tokenId) external view returns(uint);
-    function getFee(uint amount, address dml, address tokenAddress, uint256 tokenId, address user) external view returns(address[] memory feeAddress, uint[] memory feeAmount);
+    function getTotalFee(uint amount) external view returns(uint);
+    function getFee(uint amount, address dml, address user) external view returns(address[] memory feeAddress, uint[] memory feeAmount);
 }
