@@ -1,7 +1,7 @@
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interface/IReferral.sol";
-import "../interface/IRoyaltyEngineV1.sol";
+
 
 interface IDMLToken {
     function getPool() external view returns (address); 
@@ -9,15 +9,13 @@ interface IDMLToken {
 
 contract FeeManager is Ownable {
 
-    constructor(address _protocolReceiver, address _referralContract, address _royatyEngine){
+    constructor(address _protocolReceiver, address _referralContract){
         protocolReceiver = _protocolReceiver;
         referralContract = _referralContract;
-        royaltyEngine = _royatyEngine;
     }
    
     address public protocolReceiver;
     address public referralContract;
-    address public royaltyEngine;
     bool public isProtocolFee;
     uint public MAX_POINT = 30000; // 3%
     uint private protocolPoint = 5000;
@@ -39,11 +37,6 @@ contract FeeManager is Ownable {
         uint blockTime
     );
 
-    event UpdateRoyaltyEngine(
-        address royaltyEngine,
-        uint blockTime
-    );
-
     event UpdateReferralContract(
         address referral,
         uint blockTime
@@ -53,12 +46,6 @@ contract FeeManager is Ownable {
         require(_protocolReceiver != address(0), "FEEMANAGER: PROTOCOL_RECEIVER_WRONG");
         protocolReceiver = _protocolReceiver;
         emit UpdateProtocolReceiver(msg.sender, _protocolReceiver, block.timestamp);
-    }
-
-    function updateRoyaltyEngine(address _royaltyEngine) external onlyOwner(){
-        require(_royaltyEngine != address(0), "FEEMANAGER: ROYALTY_ENGINE_WRONG");
-        royaltyEngine = _royaltyEngine;
-        emit UpdateRoyaltyEngine(_royaltyEngine, block.timestamp);
     }
 
     function updateReferralContract(address _referral) external onlyOwner() {
@@ -115,15 +102,6 @@ contract FeeManager is Ownable {
         return amount * getReferralPoint() / Denominator;
     }
 
-    function getFeeRoyalty(address tokenAddress, uint256 tokenId, uint256 value) public view returns(uint){
-        uint256 totalAmount = 0;
-        (, uint256[] memory amounts) = IRoyaltyEngineV1(royaltyEngine).getRoyaltyView(tokenAddress, tokenId, value);
-        for(uint256 i = 0; i < amounts.length; i++){
-            totalAmount += amounts[i];
-        }
-        return totalAmount; 
-    }
-
     function getDetailsProtocol(uint256 amount) external view returns(address receiver, uint256 value) {
         receiver = protocolReceiver;
         value = getFeeProtocol(amount);
@@ -137,10 +115,6 @@ contract FeeManager is Ownable {
     function getDetailsLiquidity(address dml, uint256 amount) external view returns(address receiver, uint256 value) {
         receiver = IDMLToken(dml).getPool();
         value = getFeeLiquidity(amount);
-    }
-
-    function getDetailsRoyalty(address tokenAddress, uint256 tokenId, uint256 value) external view returns(address payable[] memory recipients, uint256[] memory amounts) {
-        (recipients, amounts) = IRoyaltyEngineV1(royaltyEngine).getRoyaltyView(tokenAddress, tokenId, value);
     }
 
     function getTotalFee(uint amount) external view returns(uint){

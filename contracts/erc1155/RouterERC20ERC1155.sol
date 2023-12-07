@@ -9,6 +9,7 @@ import "../interface/IWETH.sol";
 import "../interface/IFeeManager.sol";
 import "../library/SafeMath.sol";
 import "../library/TransferHelper.sol";
+import "../interface/IRoyaltyEngineV1.sol";
 
 contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
 
@@ -16,6 +17,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
     address public WETH;
     IFactoryERC20ERC1155 public factoryERC20ERC1155;
     IFeeManager public feeManager; 
+    IRoyaltyEngineV1 public royaltyEngine;
     uint public Denominator = 1000000;
 
     modifier ensure(uint deadline) {
@@ -23,10 +25,11 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         _;
     }
 
-    constructor(address _feeManager, address _factoryERC20ERC1155, address _WETH){
+    constructor(address _feeManager, address _factoryERC20ERC1155, address _WETH, address _royaltyEngine){
         factoryERC20ERC1155 = IFactoryERC20ERC1155(_factoryERC20ERC1155);
         feeManager = IFeeManager(_feeManager);
         WETH = _WETH;
+        royaltyEngine = IRoyaltyEngineV1(_royaltyEngine);
     }
 
     receive() external payable {
@@ -189,6 +192,21 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         amountAFee = amountOut.sub(feeSell);
     }
 
+    function getRoyalty(
+        address NFT,
+        uint256 tokenId,
+        uint amount
+    ) public view returns (bool status, address payable royaltyReceiver) {
+            (address payable[] memory royaltyReceiver, ) = royaltyEngine.getRoyaltyView(NFT, tokenId, amount);
+            if(royaltyReceiver.length > 0){
+                if(royaltyReceiver[0] != address(0)){
+                    status = true;
+                    royaltyReceiver = royaltyReceiver[0];
+                }
+            }
+        
+    }
+
     function buyERC20ERC1155(
         address token,
         address NFT,
@@ -201,6 +219,8 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
     ) external payable ensure(deadline) returns(uint) {
         (,, address _token) = getReservesERC20ERC1155(token, NFT, tokenId);
         (uint amount, uint feeBuy) = getAmountBuy(token, NFT, tokenId, amountNFT);
+        require(royaltyFee <= Denominator && royaltyFee >= 5000, "DeMaskRouter: ROYALTY_FEE_WRONG");
+        (bool status, address royaltyEngine) = 
         require(amount <= amountInMax, 'DeMaskRouter: EXCESSIVE_INPUT_AMOUNT');
         if(token == WETH){
             require(amountInMax == msg.value, "ROUTER: MSG_VALUE_WRONG");
