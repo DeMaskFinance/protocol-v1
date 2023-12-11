@@ -90,29 +90,29 @@ contract FeeManager is Ownable {
         return liquidityPoint;
     }
 
-    function getFeeLiquidity(uint256 amount) public view returns(uint256){
+    function getFeeLiquidity(uint amount) public view returns(uint){
         return amount * getLiquidityPoint() / Denominator;
     }
 
-    function getFeeProtocol(uint256 amount) public view returns(uint256){
+    function getFeeProtocol(uint amount) public view returns(uint){
         return amount * getProtocolPoint() / Denominator;
     }
 
-    function getFeeReferral(uint256 amount) public view returns(uint256){
+    function getFeeReferral(uint amount) public view returns(uint){
         return amount * getReferralPoint() / Denominator;
     }
 
-    function getDetailsProtocol(uint256 amount) external view returns(address receiver, uint256 value) {
+    function getDetailsProtocol(uint amount) external view returns(address receiver, uint value) {
         receiver = protocolReceiver;
         value = getFeeProtocol(amount);
     }
 
-    function getDetailsReferral(address user, uint256 amount) external view returns(address receiver, uint256 value) {
+    function getDetailsReferral(address user, uint amount) external view returns(address receiver, uint value) {
         receiver = IReferral(referralContract).getReceiver(user);
         value = getFeeReferral(amount);
     }
 
-    function getDetailsLiquidity(address dml, uint256 amount) external view returns(address receiver, uint256 value) {
+    function getDetailsLiquidity(address dml, uint amount) external view returns(address receiver, uint value) {
         receiver = IDMLToken(dml).getPool();
         value = getFeeLiquidity(amount);
     }
@@ -122,9 +122,9 @@ contract FeeManager is Ownable {
         return fee;
     }
 
-    function getFee(uint amount, address dml, address user) external view returns(address[] memory, uint256[] memory){
+    function getFee(uint amount, address dml, address user) external view returns(address[] memory, uint[] memory){
         address[] memory feeAddress = new address[](3);
-        uint256[] memory feeAmount = new uint256[](3);
+        uint[] memory feeAmount = new uint[](3);
         feeAddress[0] = protocolReceiver;
         feeAddress[1] = IReferral(referralContract).getReceiver(user);
         feeAddress[2] = IDMLToken(dml).getPool();

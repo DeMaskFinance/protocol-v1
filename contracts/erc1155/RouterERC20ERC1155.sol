@@ -82,7 +82,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
             TransferHelper.safeTransferFrom(token, msg.sender, _token, amountToken);
         }
         liquidity = IDMLTokenERC20ERC1155(_token).mint(to);
-        (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        (uint _reserveToken, uint _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         emit MakeLiquidity(
             'Add',
             to,
@@ -109,7 +109,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
            factoryERC20ERC1155.createDMLToken(msg.sender, token, NFT, tokenId);
         }
         
-        (uint256 _reservetoken, uint256 _reservenft, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        (uint _reservetoken, uint _reservenft, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         if(_reservetoken == 0 && _reservenft == 0){
             (amountToken, amountNFT) = (amountTokenDesired, amountNFTDesired);
         } else {
@@ -124,7 +124,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         address token,
         address NFT,
         uint256 tokenId
-    ) internal view returns(uint256 _reserveToken, uint256 _reserveNFT, address _token){
+    ) internal view returns(uint _reserveToken, uint _reserveNFT, address _token){
         _token = factoryERC20ERC1155.getDmlToken(token, NFT, tokenId);
         ( _reserveToken, _reserveNFT) = IDMLTokenERC20ERC1155(_token).getReserves();
     }
@@ -144,7 +144,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         (amountToken, amountNFT) = IDMLTokenERC20ERC1155(_token).burn(to);
         require(amountToken >= amountTokenMin, 'DeMaskRouter: INSUFFICIENT_ERC_AMOUNT');
         require(amountNFT >= amountNFTMin, 'DeMaskRouter: INSUFFICIENT_NFT_AMOUNT');
-        (uint256 _reservetoken, uint256 _reservenft, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        (uint _reservetoken, uint _reservenft, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         emit MakeLiquidity(
             'Remove',
             to,
@@ -165,7 +165,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint256 tokenId,
         uint amountNFT
     ) public view returns (uint amountAFee, uint feeBuy){
-        (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        (uint _reserveToken, uint _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         require(amountNFT > 0, 'DeMaskRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         require(_reserveToken > 0 && _reserveNFT > 0, 'DeMaskRouter: INSUFFICIENT_LIQUIDITY');
         uint numerator = _reserveToken.mul(amountNFT).mul(10000);
@@ -181,7 +181,7 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         uint256 tokenId,
         uint amountNFT
     ) public view returns (uint amountAFee, uint feeSell){
-        (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        (uint _reserveToken, uint _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         require(amountNFT > 0, 'DeMaskRouter: INSUFFICIENT_INPUT_AMOUNT');
         require(_reserveToken > 0 && _reserveNFT > 0, 'DeMaskRouter: INSUFFICIENT_LIQUIDITY');
         uint amountInWithFee = amountNFT.mul(9975);
@@ -196,13 +196,11 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         address NFT,
         uint256 tokenId,
         uint amount
-    ) public view returns (bool status, address payable royaltyReceiver) {
+    ) public view returns (bool status, address receiver) {
             (address payable[] memory royaltyReceiver, ) = royaltyEngine.getRoyaltyView(NFT, tokenId, amount);
             if(royaltyReceiver.length > 0){
-                if(royaltyReceiver[0] != address(0)){
-                    status = true;
-                    royaltyReceiver = royaltyReceiver[0];
-                }
+                status = true;
+                receiver = royaltyReceiver[0];
             }
         
     }
@@ -217,22 +215,28 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         address to,
         uint deadline
     ) external payable ensure(deadline) returns(uint) {
+        uint amountRoyalty = 0;
         (,, address _token) = getReservesERC20ERC1155(token, NFT, tokenId);
         (uint amount, uint feeBuy) = getAmountBuy(token, NFT, tokenId, amountNFT);
         require(royaltyFee <= Denominator && royaltyFee >= 5000, "DeMaskRouter: ROYALTY_FEE_WRONG");
-        (bool status, address royaltyEngine) = 
-        require(amount <= amountInMax, 'DeMaskRouter: EXCESSIVE_INPUT_AMOUNT');
+        (bool status, address royaltyReceiver) = getRoyalty(NFT, tokenId, amount);
+        if(status){
+            amountRoyalty = royaltyFee / Denominator;
+        }
+        require(amount + amountRoyalty <= amountInMax, 'DeMaskRouter: EXCESSIVE_INPUT_AMOUNT');
         if(token == WETH){
             require(amountInMax == msg.value, "ROUTER: MSG_VALUE_WRONG");
             IWETH(WETH).deposit{value: amount.sub(feeBuy) }();
             TransferHelper.safeTransfer(WETH, _token, amount.sub(feeBuy));
             if (msg.value > amount) TransferHelper.safeTransferETH(msg.sender, msg.value.sub(amount));
+            if(amountRoyalty > 0) TransferHelper.safeTransferETH(royaltyReceiver, amountRoyalty);
         }else{
             TransferHelper.safeTransferFrom(token, msg.sender, _token, amount.sub(feeBuy));
+            if(amountRoyalty > 0) TransferHelper.safeTransferFrom(token, msg.sender, royaltyReceiver, amountRoyalty);
         }
         _feeDistribution(_token, token, amount.sub(feeBuy));
-        _swapAndUpdateReward(token, 0, amountNFT, to, msg.sender, amount.sub(feeBuy), _token);
-        (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        _swapAndUpdateReward(token, 0, amountNFT, to, msg.sender, amount.sub(feeBuy), _token, royaltyReceiver, amountRoyalty);
+        (uint _reserveToken, uint _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         emit MakeTransaction(
             'Buy',
             to, 
@@ -257,12 +261,18 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         address to,
         uint deadline
     ) external ensure(deadline) returns(uint) {
+        uint amountRoyalty = 0;
         (,, address _token) = getReservesERC20ERC1155(token, NFT, tokenId);
         (uint amount, uint feeSell) = getAmountSell(token, NFT, tokenId, amountNFT);
-        require(amount >= amountOutMin, 'DeMaskRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        require(royaltyFee <= Denominator && royaltyFee >= 5000, "DeMaskRouter: ROYALTY_FEE_WRONG");
+        (bool status, address royaltyReceiver) = getRoyalty(NFT, tokenId, amount);
+        if(status){
+            amountRoyalty = royaltyFee / Denominator;
+        }
+        require(amount - amountRoyalty >= amountOutMin, 'DeMaskRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         TransferHelper.safeTransferFromERC1155(NFT, msg.sender, _token, tokenId, amountNFT, bytes(''));
-        _swapAndUpdateReward(token, amount.add(feeSell), 0, to, msg.sender, amount.add(feeSell), _token);
-        (uint256 _reserveToken, uint256 _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
+        _swapAndUpdateReward(token, amount.add(feeSell), 0, to, msg.sender, amount.add(feeSell), _token, royaltyReceiver, amountRoyalty);
+        (uint _reserveToken, uint _reserveNFT, ) = getReservesERC20ERC1155(token, NFT, tokenId);
         emit MakeTransaction(
             'Sell',
             to, 
@@ -277,17 +287,17 @@ contract RouterERC20ERC1155 is ERC1155Holder, Ownable {
         return amount;
     }
 
-    function _swapAndUpdateReward(address _tokenReward, uint amounttokenOut, uint amountnftOut, address to, address from, uint _amount, address _token) internal {
-        IDMLTokenERC20ERC1155(_token).swap(amounttokenOut, amountnftOut, to, from);
+    function _swapAndUpdateReward(address _tokenReward, uint amounttokenOut, uint amountnftOut, address to, address from, uint _amount, address _token, address royaltyReceiver, uint amountRoyalty) internal {
+        IDMLTokenERC20ERC1155(_token).swap(amounttokenOut, amountnftOut, to, from, royaltyReceiver, amountRoyalty);
         address[] memory tokenReward = new address[](1);
-        uint256[] memory amountReward = new uint256[](1);
+        uint[] memory amountReward = new uint[](1);
         tokenReward[0] = _tokenReward;
         amountReward[0] = feeManager.getFeeLiquidity(_amount);
         IDMLTokenERC20ERC1155(_token).updateReward(tokenReward, amountReward);
     }
 
     function _feeDistribution(address _token, address token, uint amount) internal {
-        (address[] memory feeAddress, uint256[] memory feeAmount) = feeManager.getFee(amount, _token, msg.sender);
+        (address[] memory feeAddress, uint[] memory feeAmount) = feeManager.getFee(amount, _token, msg.sender);
         (token == WETH) ? TransferHelper.safeBatchTransferETH(feeAddress, feeAmount) :  TransferHelper.safeBatchTransferFrom(token, msg.sender, feeAddress, feeAmount);
     }
 }

@@ -11,7 +11,6 @@ import "../model/Pool.sol";
 import "../interface/IFeeManager.sol";
 import "../interface/IWETH.sol";
 import "../interface/ITokenList.sol";
-import "../interface/IRouterERC20ERC1155.sol";
 import "../interface/IRoyaltyEngineV1.sol";
 
 contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
@@ -20,8 +19,8 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     address public token;
     address public NFT;
     address public router;
-    uint256 public reserveToken;
-    uint256 public reserveNFT;
+    uint public reserveToken;
+    uint public reserveNFT;
     uint256 public tokenId;
     uint public kLast;
     uint public Denominator = 1000000;
@@ -49,7 +48,7 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     receive() external payable {}
 
     event Mint(address indexed sender, uint amountERC, uint amountNFT);
-    event Sync(uint256 reserveToken, uint256 reserveNFT);
+    event Sync(uint reserveToken, uint reserveNFT);
     event Burn(address indexed sender, uint amountERC, uint amountNFT, address indexed to);
     event Swap(
         address indexed sender,
@@ -68,7 +67,7 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     function updateReward(address[] memory _token, uint256[] memory _amount) public virtual override onlyRouter() {
         require(_token.length == _amount.length, "ERC7254: token and amount length mismatch");
         if(totalSupply() != 0){
-            for( uint256 i = 0; i < _token.length; ++i){
+            for( uint i = 0; i < _token.length; ++i){
                 _updateRewardPerShare(_token[i], _amount[i]);
             }
         }        
@@ -76,9 +75,9 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
 
     function getReward(address[] memory _token, address to) public nonReentrant virtual override {
         address owner = _msgSender();
-        for( uint256 i = 0; i < _token.length; ++i){
+        for( uint i = 0; i < _token.length; ++i){
             UserInformation memory user = informationOf(_token[i],owner);
-            uint256 reward = balanceOf(owner) * getRewardPerShare(token) + user.inReward - user.withdraw - user.outReward;
+            uint reward = balanceOf(owner) * getRewardPerShare(token) + user.inReward - user.withdraw - user.outReward;
             _withdraw(_token[i], owner, reward);
             if(reward / MAX > 0){
                 pool.transferToken(to, reward / MAX );
@@ -92,7 +91,7 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
             abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
         );
         require(success);
-        return abi.decode(data, (uint256));
+        return abi.decode(data, (uint));
     }
 
     function getBalanceNFT() internal view returns(uint){
@@ -100,10 +99,10 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
             abi.encodeWithSelector(IERC1155.balanceOf.selector, address(this), tokenId)
         );
         require(success);
-        return abi.decode(data, (uint256));
+        return abi.decode(data, (uint));
     }
 
-    function getReserves() public view returns (uint256 _reserveToken, uint256 _reserveNFT){
+    function getReserves() public view returns (uint _reserveToken, uint _reserveNFT){
         _reserveToken = reserveToken;
         _reserveNFT = reserveNFT;
     }
@@ -116,15 +115,15 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
         return feeManager.getProtocolReceiver();
     }
 
-    function mint(address to) external nonReentrant returns (uint256 liquidity) {
-        (uint256 _reserveToken, uint256 _reserveNFT) = getReserves();
-        uint256 balanceToken = getBalanceToken();
-        uint256 balanceNFT = getBalanceNFT();
-        uint256 amountERC = balanceToken.sub(_reserveToken);
-        uint256 amountNFT = balanceNFT.sub(_reserveNFT);
+    function mint(address to) external nonReentrant returns (uint liquidity) {
+        (uint _reserveToken, uint _reserveNFT) = getReserves();
+        uint balanceToken = getBalanceToken();
+        uint balanceNFT = getBalanceNFT();
+        uint amountERC = balanceToken.sub(_reserveToken);
+        uint amountNFT = balanceNFT.sub(_reserveNFT);
 
         bool feeOn = _mintFee(_reserveToken, _reserveNFT);
-        uint256 _totalSupply = totalSupply();
+        uint _totalSupply = totalSupply();
         if(_totalSupply == 0){
             liquidity = Math.sqrt(amountERC.mul(amountNFT));
         } else {
@@ -140,12 +139,12 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     }
 
     function burn(address to) external nonReentrant returns (uint amountERC, uint amountNFT) {
-        (uint256 _reserveToken, uint256 _reserveNFT) = getReserves();
+        (uint _reserveToken, uint _reserveNFT) = getReserves();
         uint balanceToken = getBalanceToken();
         uint balanceNFT = getBalanceNFT();
         uint liquidity = balanceOf(address(this));
         bool feeOn = _mintFee(_reserveToken, _reserveNFT);
-        uint256 _totalSupply = totalSupply();
+        uint _totalSupply = totalSupply();
         amountERC = liquidity.mul(balanceToken) / _totalSupply;
         amountNFT = liquidity.mul(balanceNFT) / _totalSupply;
         require(amountERC > 0 && balanceNFT > 0 && amountERC <= balanceToken, 'DEMASK: INSUFFICIENT_LIQUIDITY_BURNED');
@@ -153,8 +152,8 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
         if(liquidity == _totalSupply){
             TransferHelper.safeTransferFromERC1155(NFT, address(this), to, tokenId, balanceNFT, bytes(''));
         }else {
-            uint256 tokenRemaining = _reserveToken.sub(amountERC);
-            uint256 nftRemaining = _reserveNFT.sub(amountNFT);
+            uint tokenRemaining = _reserveToken.sub(amountERC);
+            uint nftRemaining = _reserveNFT.sub(amountNFT);
             amountERC += (liquidity.mul(balanceNFT) - amountNFT.mul(_totalSupply)).mul(tokenRemaining)/(nftRemaining.mul(_totalSupply));        
             if(amountNFT > 0 ){
                 TransferHelper.safeTransferFromERC1155(NFT, address(this), to, tokenId, amountNFT, bytes(''));
@@ -174,9 +173,9 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
         emit Burn(msg.sender, amountERC, amountNFT, to);
     }
 
-    function swap(uint amountTokenOut, uint amountNFTOut, address to, address from) external nonReentrant {
+    function swap(uint amountTokenOut, uint amountNFTOut, address to, address from, address royaltyReceiver, uint amountRoyalty) external nonReentrant {
         require( (amountTokenOut == 0 && amountNFTOut > 0) || (amountTokenOut > 0 && amountNFTOut == 0), 'DEMASK: INSUFFICIENT_OUTPUT_AMOUNT');
-        (uint256 _reserveToken, uint256 _reserveNFT) = getReserves();
+        (uint _reserveToken, uint _reserveNFT) = getReserves();
         require(amountTokenOut < _reserveToken && amountNFTOut < _reserveNFT, 'DEMASK: INSUFFICIENT_LIQUIDITY');
         uint balanceToken;
         uint balanceNFT;
@@ -186,7 +185,8 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
             if (amountTokenOut > 0) {
                 uint _fee = feeManager.getTotalFee(amountTokenOut);
                 if(token == WETH) IWETH(WETH).withdraw(amountTokenOut);
-                (token == WETH) ? TransferHelper.safeTransferETH(to, amountTokenOut.sub(_fee)) : TransferHelper.safeTransfer(token, to, amountTokenOut.sub(_fee));
+                (token == WETH) ? TransferHelper.safeTransferETH(to, amountTokenOut.sub(_fee).sub(amountRoyalty)) : TransferHelper.safeTransfer(token, to, amountTokenOut.sub(_fee).sub(amountRoyalty));
+                (token == WETH && amountRoyalty > 0) ? TransferHelper.safeTransferETH(royaltyReceiver, amountRoyalty) : TransferHelper.safeTransfer(token, royaltyReceiver, amountRoyalty);
                 _distribution(from, amountTokenOut);
             }
             if(amountNFTOut > 0) TransferHelper.safeTransferFromERC1155(NFT, address(this), to, tokenId, amountNFTOut, bytes(''));
@@ -212,14 +212,14 @@ contract DMLTokenERC20ERC1155 is ERC7254, ReentrancyGuard, ERC1155Holder {
     }
 
     function _update(uint balanceToken, uint balanceNFT) private {
-        uint256 MAX_INT_256 = 2**256 - 1;
-        require(balanceToken <= uint256(MAX_INT_256) && balanceNFT <= uint256(MAX_INT_256), 'DEMASK: OVERFLOW');
-        reserveToken = uint256(balanceToken);
-        reserveNFT = uint256(balanceNFT);
+        uint MAX_INT_256 = 2**256 - 1;
+        require(balanceToken <= uint(MAX_INT_256) && balanceNFT <= uint(MAX_INT_256), 'DEMASK: OVERFLOW');
+        reserveToken = uint(balanceToken);
+        reserveNFT = uint(balanceNFT);
         emit Sync(reserveToken, reserveNFT);
     }
     
-    function _mintFee(uint256 _reserve0, uint256 _reserve1) private returns (bool feeOn) {
+    function _mintFee(uint _reserve0, uint _reserve1) private returns (bool feeOn) {
         address feeTo = feeToProtocol();
         feeOn = feeTo != address(0);
         uint _kLast = kLast; // gas savings
@@ -249,7 +249,7 @@ contract FactoryERC20ERC1155 is Ownable{
 
     mapping(address => mapping(address => mapping(uint256 => address))) public dmlToken;
     
-    event DmlTokenCreated(address creator,address erc, address nft, uint256 tokenId, address dmlToken, uint256 length);
+    event DmlTokenCreated(address creator,address erc, address nft, uint256 tokenId, address dmlToken, uint length);
     
     constructor(address _feeManager, address _weth, address _tokenList){
         feeManager = _feeManager;
