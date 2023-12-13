@@ -35,9 +35,9 @@ const config: HardhatUserConfig = {
       accounts: [process.env.WALLET_PRIVATE_KEY]
     },
 
-    goerli: {
+    abcd: {
       url: "https://ethereum-goerli.publicnode.com",
-      accounts: [process.env.WALLET_PRIVATE_KEY]
+      accounts: [process.env.A]
     },
 
     matic: {
@@ -57,7 +57,7 @@ const config: HardhatUserConfig = {
     }
   },
   etherscan : {
-    apiKey: process.env.API_KEY_MATIC
+    apiKey: process.env.API_KEY
   }
 };
 

@@ -231,14 +231,14 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         require(royaltyFee <= Denominator && royaltyFee >= 5000, "DeMaskRouter: ROYALTY_FEE_WRONG");
         (bool status, address royaltyReceiver) = getRoyalty(NFT, tokenId[0], amount);
         if(status){
-            amountRoyalty = royaltyFee / Denominator;
+            amountRoyalty = amount * royaltyFee / Denominator;
         }
         require(amount + amountRoyalty <= amountInMax, 'DeMaskRouter: EXCESSIVE_INPUT_AMOUNT');
         if(token == WETH){
             require(amountInMax == msg.value, "ROUTER: MSG_VALUE_WRONG");
             IWETH(WETH).deposit{value: amount.sub(feeBuy)}();
             TransferHelper.safeTransfer(WETH, _token, amount.sub(feeBuy));
-            if (msg.value > amount) TransferHelper.safeTransferETH(msg.sender, msg.value.sub(amount));
+            if (msg.value > (amount + amountRoyalty)) TransferHelper.safeTransferETH(msg.sender, msg.value.sub(amount).sub(amountRoyalty));
             if(amountRoyalty > 0) TransferHelper.safeTransferETH(royaltyReceiver, amountRoyalty);
         }else {
             TransferHelper.safeTransferFrom(token, msg.sender, _token, amount.sub(feeBuy));
@@ -277,7 +277,7 @@ contract RouterERC20ERC721 is ERC721Holder, Ownable {
         require(royaltyFee <= Denominator && royaltyFee >= 5000, "DeMaskRouter: ROYALTY_FEE_WRONG");
         (bool status, address royaltyReceiver) = getRoyalty(NFT, tokenId[0], amount);
         if(status){
-            amountRoyalty = royaltyFee / Denominator;
+            amountRoyalty = amount * royaltyFee / Denominator;
         }
         require(amount - amountRoyalty >= amountOutMin, 'DeMaskRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         TransferHelper.safeTransferFromERC721(NFT, msg.sender, _token, tokenId, tokenId.length);

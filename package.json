@@ -45,9 +45,13 @@
     "axios": "^1.4.0",
     "chai": "^4.3.10",
     "dotenv": "^16.0.3",
+    "ethereumjs-util": "^7.1.5",
     "ethers": "^5.7.2",
+    "factory": "^1.0.5",
     "hardhat-abi-exporter": "^2.10.0",
     "hardhat-contract-sizer": "^2.1.1",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.3.11",
     "nftscan-api": "^1.10.0",
     "web3": "^1.8.2"
   }
